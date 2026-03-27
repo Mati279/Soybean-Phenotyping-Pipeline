@@ -31,7 +31,7 @@ class VegetationIndices:
         """
         # Si el MS tiene 5 bandas, usar solo las primeras 4 (ignorar ALPHA)
         if ms_norm_array.shape[0] == 5:
-            print("⚠️  Detectadas 5 bandas en MS, usando solo las primeras 4 (ignorando ALPHA)")
+            print("Detectadas 5 bandas en MS, usando solo las primeras 4 (ignorando ALPHA)")
             self.ms_array = ms_norm_array[:4, :, :]  # Toma solo bandas 0-3
         else:
             self.ms_array = ms_norm_array

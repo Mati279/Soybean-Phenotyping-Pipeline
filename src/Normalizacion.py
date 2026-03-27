@@ -83,7 +83,7 @@ def normalize_radiometric(image: np.ndarray) -> np.ndarray:
     
     # Para multiespectral (3D): normalizar cada banda independientemente
     if arr.ndim == 3:
-        print(f"  🔧 Normalizando {arr.shape[0]} bandas independientemente")
+        print(f"Normalizando {arr.shape[0]} bandas independientemente")
         normalized = np.zeros_like(arr)
         
         for i in range(arr.shape[0]):
@@ -119,7 +119,7 @@ def normalize_radiometric(image: np.ndarray) -> np.ndarray:
         sample = arr[::10, ::10] if arr.ndim > 1 else arr
         current_max = np.nanmax(sample)
         
-        print(f"  🔧 Normalizando imagen 2D/RGB: Max={current_max:.4f}")
+        print(f"Normalizando imagen 2D/RGB: Max={current_max:.4f}")
         
         if current_max > 1.5:
             # Normalizar por percentil si es rango grande
