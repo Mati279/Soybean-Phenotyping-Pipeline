@@ -1,5 +1,7 @@
 import numpy as np
 
+import matplotlib.pyplot as plt
+
 class VegetationIndices:
     """
     Calculadora de índices vegetativos.
@@ -37,6 +39,10 @@ class VegetationIndices:
             self.ms_array = ms_norm_array
         
         self.rgb_array = rgb_norm_array
+        
+        self.rgb_red = None
+        self.rgb_green = None
+        self.rgb_blue = None
         
         # Extrae las bandas del MS
         self.red = self.ms_array[self.B_MS_RED, :, :]
@@ -93,6 +99,8 @@ class VegetationIndices:
     # Índices adicionales (requiere el blue del RGB)
     def calculate_vari(self):
         """VARI = (Green - Red) / (Green + Red - Blue)."""
+        if self.rgb_blue is None:
+            return None
         numerator = self.rgb_green - self.rgb_red
         denominator = self.rgb_green + self.rgb_red - self.rgb_blue
         return self._safe_divide(numerator, denominator)
@@ -140,7 +148,6 @@ class VegetationIndices:
         Muestra un mapa de calor de un índice y su histograma.
         Permite definir vmin y vmax..
         """
-        import matplotlib.pyplot as plt
 
         # Aplanar y filtrar NaNs para estadísticas y visualización
         valid_data = index_array.flatten()

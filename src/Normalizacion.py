@@ -42,7 +42,8 @@ def align_to_reference(target_array: np.ndarray, ref_profile: dict,
             # Definimos el perfil temporal con los datos del array de origen
             temp_profile = src_profile.copy()
             temp_profile.update(dtype=target_array.dtype, count=target_array.shape[0], # Modifica las keys.
-                                height=target_array.shape[1], width=target_array.shape[2])
+                                height=target_array.shape[1], width=target_array.shape[2],
+                                nodata=np.nan)
             
             # Escribimos el array de origen al dataset en memoria
             with memfile.open(**temp_profile) as dst:
@@ -70,19 +71,20 @@ def align_to_reference(target_array: np.ndarray, ref_profile: dict,
 
 
 # Normalización radiométrica
-def normalize_radiometric(image: np.ndarray) -> np.ndarray:
+def normalize_radiometric(image: np.ndarray, is_rgb: bool = False) -> np.ndarray:
     """
     Escala los valores de un ortomosaico al rango [0, 1].
     Maneja cada banda independientemente para evitar que bandas
-    con rangos diferentes (como ALPHA) afecten la normalización.
+    con rangos diferentes (como ALPHA) afecten la normalización,
+    a menos que is_rgb sea Verdadero, en cuyo caso normaliza globalmente.
     """
     if image is None:
         return None
 
     arr = image.astype("float32")
     
-    # Para multiespectral (3D): normalizar cada banda independientemente
-    if arr.ndim == 3:
+    # Para multiespectral: normalizar cada banda independientemente
+    if not is_rgb:
         print(f"Normalizando {arr.shape[0]} bandas independientemente")
         normalized = np.zeros_like(arr)
         
@@ -114,9 +116,9 @@ def normalize_radiometric(image: np.ndarray) -> np.ndarray:
                 
         return np.clip(normalized, 0, 1)
     
-    # Para RGB (2D): normalizar todo junto
+    # Para RGB: normalizar todo junto
     else:
-        sample = arr[::10, ::10] if arr.ndim > 1 else arr
+        sample = arr[:, ::10, ::10] if arr.ndim == 3 else arr[::10, ::10]
         current_max = np.nanmax(sample)
         
         print(f"Normalizando imagen 2D/RGB: Max={current_max:.4f}")
@@ -144,11 +146,11 @@ def normalize_all(aligned_data: dict) -> dict:
     normalized = {}
     
     # Normaliza el MS
-    normalized["ms"] = normalize_radiometric(aligned_data["ms_data"])
+    normalized["ms"] = normalize_radiometric(aligned_data["ms_data"], is_rgb=False)
     
     # Normaliza el RGB
     if aligned_data.get("rgb_aligned") is not None:
-        normalized["rgb"] = normalize_radiometric(aligned_data["rgb_aligned"])
+        normalized["rgb"] = normalize_radiometric(aligned_data["rgb_aligned"], is_rgb=True)
     else:
         normalized["rgb"] = None
 
