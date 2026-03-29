@@ -1,0 +1,25 @@
+# Manipulación de datos y arreglos numéricos
+numpy>=1.24.3
+pandas>=2.0.3
+
+# Procesamiento de imágenes geoespaciales y lectura de ortomosaicos (TIFF)
+rasterio>=1.3.8
+
+# Procesamiento de imágenes general (Umbralización de Otsu, filtros)
+scikit-image>=0.21.0
+opencv-python>=4.8.0
+
+# Machine Learning y Estadística (PCA, Clustering, Métricas de Silueta)
+scikit-learn>=1.3.0
+scipy>=1.11.1
+
+# Visualización de datos (Mapas de calor, Dendrogramas, Histogramas)
+matplotlib>=3.7.2
+seaborn>=0.12.2
+
+# Entorno de desarrollo interactivo
+jupyter>=1.0.0
+ipykernel>=6.25.0
+
+# Manejo opcional de nubes de puntos 3D (.laz / .las)
+laspy>=2.5.1
