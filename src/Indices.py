@@ -105,7 +105,8 @@ class VegetationIndices:
             return None
         numerator = self.rgb_green - self.rgb_red
         denominator = self.rgb_green + self.rgb_red - self.rgb_blue
-        return self._safe_divide(numerator, denominator)
+        res = self._safe_divide(numerator, denominator)
+        return np.clip(res, -1, 1)
 
     def calculate_exg(self):
         """ExG = 2*Green - Red - Blue."""
@@ -113,22 +114,11 @@ class VegetationIndices:
         return 2 * self.rgb_green - self.rgb_red - self.rgb_blue
 
     def calculate_evi_hybrid(self):
-        """
-        EVI simplificado para valores normalizados (0-1).
-        
-        EVI_simplified = 2.5 * ((NIR - RED) / (NIR + 2.4*RED + 1))
-        
-        Esta versión ajustada funciona mejor cuando BLUE está normalizado.
-        """
-        if self.rgb_blue is None: 
-            return None
-        
         numerator = self.nir - self.red
         # Coeficientes ajustados para valores 0-1
         denominator = self.nir + 2.4 * self.red + 1
         
         return 2.5 * self._safe_divide(numerator, denominator)
-
     def calculate_main_indices(self):
         """Calcula y devuelve todos los índices principales."""
         indices = {}
