@@ -2,6 +2,8 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
+from config import VALIDATED_INDICES
+
 class VegetationIndices:
     """
     Calculadora de índices vegetativos.
@@ -129,17 +131,24 @@ class VegetationIndices:
 
     def calculate_main_indices(self):
         """Calcula y devuelve todos los índices principales."""
-        indices = {
-            "ndvi": self.calculate_ndvi(),
-            "ndre": self.calculate_ndre(),
-            "savi": self.calculate_savi(),
-            "gndvi": self.calculate_gndvi()
-        }
+        indices = {}
         
+        if 'NDVI' in VALIDATED_INDICES:
+            indices["ndvi"] = self.calculate_ndvi()
+        if 'NDRE' in VALIDATED_INDICES:
+            indices["ndre"] = self.calculate_ndre()
+        if 'SAVI' in VALIDATED_INDICES:
+            indices["savi"] = self.calculate_savi()
+        if 'GNDVI' in VALIDATED_INDICES:
+            indices["gndvi"] = self.calculate_gndvi()
+            
         if self.rgb_array is not None:
-            indices["vari"] = self.calculate_vari()
-            indices["exg"] = self.calculate_exg() # type: ignore
-            indices["evi"] = self.calculate_evi_hybrid() # type: ignore
+            if 'VARI' in VALIDATED_INDICES:
+                indices["vari"] = self.calculate_vari()
+            if 'ExG' in VALIDATED_INDICES:
+                indices["exg"] = self.calculate_exg() # type: ignore
+            if 'EVI' in VALIDATED_INDICES:
+                indices["evi"] = self.calculate_evi_hybrid() # type: ignore
             
         return indices
     
