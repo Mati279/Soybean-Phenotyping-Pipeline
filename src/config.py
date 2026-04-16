@@ -11,7 +11,8 @@ BAND_SUFFIXES = {
     'RGB': '_rgb_orthophoto.tif',
     'MS': '_MS_orthophoto.tif',
     'RED': '_RED_orthophoto.tif',
-    'NIR': '_NIR_orthophoto.tif'
+    'NIR': '_NIR_orthophoto.tif',
+    'DSM': '_DSM_orthophoto.tif'
 }
 
 
