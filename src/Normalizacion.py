@@ -159,22 +159,33 @@ def normalize_all(aligned_data: dict) -> dict:
 
 # Función maestra
 def process_session(ms_data: np.ndarray, ms_profile: dict, 
-                    rgb_data: np.ndarray, rgb_profile: dict) -> dict:
+                    rgb_data: np.ndarray, rgb_profile: dict,
+                    dsm_data: np.ndarray = None, dsm_profile: dict = None) -> dict:
     """
-    Función maestra que aplica toda la normalización (Espacial y Radiométrica) 
-    para una única sesión (par MS/RGB).
+    Función maestra que coordina la alineación espacial y la normalización radiométrica.
+    
+    Procesa las bandas multiespectrales y RGB aplicando alineación espacial 
+    y escalado radiométrico [0, 1]. Si se provee un DSM, se le aplica únicamente 
+    la alineación espacial para que coincida con la matriz de referencia, 
+    preservando sus valores físicos originales (metros).
 
     Parámetros:
+    ----------
     ms_data, rgb_data : np.ndarray
-        Arrays de la imagen Multiespectral y RGB.
+        Matrices de la imagen Multiespectral y RGB.
     ms_profile, rgb_profile : dict
-        Perfiles de rasterio de ambas imágenes.
+        Perfiles de metadatos de rasterio de ambas imágenes.
+    dsm_data : np.ndarray, opcional
+        Matriz del Modelo Digital de Superficie.
+    dsm_profile : dict, opcional
+        Perfil de metadatos de rasterio del DSM.
 
     Retorna:
-    dict: Diccionario con claves 'ms' y 'rgb' con arrays normalizados y alineados.
+    -------
+    dict: Diccionario con las claves 'ms', 'rgb' y 'dsm' conteniendo las matrices procesadas.
     """
     
-    # Normalización Espacial
+    # Ejecuta la alineación espacial del array RGB utilizando el MS como molde de referencia.
     rgb_aligned = align_to_reference(
         rgb_data, 
         ms_profile,
@@ -183,22 +194,44 @@ def process_session(ms_data: np.ndarray, ms_profile: dict,
     )
 
     if rgb_aligned is None:
-        print("Alineación espacial fallida.")
-        return {"ms": None, "rgb": None}
+        print("Error: Alineación espacial del RGB fallida.")
+        return {"ms": None, "rgb": None, "dsm": None}
     
-    print("Alineación espacial completada.")
+    print("Alineación espacial de RGB completada.")
 
-    # Normalización Radiométrica
-    print("Iniciando Normalización Radiométrica")
-    
-    aligned_data = {
+    # Inicializa la variable del DSM alineado como nula.
+    dsm_aligned = None
+
+    # Verifica si se introdujeron datos de elevación en la función.
+    if dsm_data is not None and dsm_profile is not None:
+        # Ejecuta la alineación espacial del DSM utilizando el MS como molde de referencia.
+        # Se emplea interpolación bilineal para mantener la continuidad del relieve topográfico.
+        dsm_aligned = align_to_reference(
+            dsm_data,
+            ms_profile,
+            dsm_profile,
+            Resampling.bilinear
+        )
+        if dsm_aligned is not None:
+            print("Alineación espacial del DSM completada.")
+        else:
+            print("Advertencia: Falló la alineación del DSM.")
+
+    # Agrupa los datos que requieren normalización radiométrica. 
+    # El DSM se excluye deliberadamente de este diccionario.
+    print("Iniciando Normalización Radiométrica (excluyendo DSM para preservar unidades métricas)...")
+    aligned_data_for_radiometry = {
         "ms_data": ms_data,       
         "rgb_aligned": rgb_aligned
     }
     
-    # Aplicamos la normalización [0, 1] a ambos
-    normalized = normalize_all(aligned_data)
-    
+    # Ejecuta el escalado de reflectancia [0, 1] únicamente sobre MS y RGB.
+    normalized = normalize_all(aligned_data_for_radiometry)
     print("Normalización radiométrica completada.")
 
-    return normalized
+    # Retorna el paquete de datos unificado.
+    return {
+        "ms": normalized["ms"],
+        "rgb": normalized["rgb"],
+        "dsm": dsm_aligned
+    }
