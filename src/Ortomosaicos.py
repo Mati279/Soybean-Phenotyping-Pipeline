@@ -101,7 +101,7 @@ def show_orthomosaic(orthomosaic: np.ndarray, title: str = " ") -> None:
     Parámetros:
         orthomosaic : np.ndarray
         Array de NumPy ya cargado en memoria.
-    title : str, opcional
+    title : str, op cional
         Título del gráfico.
     """
     # Chequeo de tipo

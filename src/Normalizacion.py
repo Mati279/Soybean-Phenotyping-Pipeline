@@ -166,8 +166,7 @@ def process_session(ms_data: np.ndarray, ms_profile: dict,
     
     Procesa las bandas multiespectrales y RGB aplicando alineación espacial 
     y escalado radiométrico [0, 1]. Si se provee un DSM, se le aplica únicamente 
-    la alineación espacial para que coincida con la matriz de referencia, 
-    preservando sus valores físicos originales (metros).
+    la alineación espacial para que coincida con la matriz de referencia.
 
     Parámetros:
     ----------

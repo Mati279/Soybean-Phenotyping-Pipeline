@@ -30,7 +30,8 @@ VALIDATED_INDICES = [
     'EVI',
     'VARI',
     'ExG',
-    'SAVI'
+    'SAVI',
+    'GI'
 ]
 
 FEATURE_EXTRACTION_STATS = [
