@@ -1,3 +1,5 @@
+import os
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -232,3 +234,44 @@ class VegetationIndices:
         # Renderiza el lienzo completo.
         plt.tight_layout()
         plt.show()
+    
+    def exportar_metricas_indices(diccionario_resultados, fecha, directorio_salida="../outputs"):
+        """
+        Calcula estadísticas descriptivas para cada índice y las exporta a un archivo JSON.
+        Ignora los valores nulos (NaN) provenientes del fondo.
+        """
+        # Crea el directorio de salida si no existe
+        os.makedirs(directorio_salida, exist_ok=True)
+        
+        resumen_metricas = {}
+        
+        print("Calculando métricas para exportación...")
+        
+        # Itera sobre cada índice calculado en el diccionario de resultados
+        for nombre_indice, matriz in diccionario_resultados.items():
+            # Aplana la matriz y filtra los valores NaN
+            datos_validos = matriz.flatten()
+            datos_validos = datos_validos[~np.isnan(datos_validos)]
+            
+            # Verifica que existan datos válidos antes de calcular estadísticas
+            if len(datos_validos) > 0:
+                resumen_metricas[nombre_indice.upper()] = {
+                    "Minimo": float(np.min(datos_validos)),
+                    "Maximo": float(np.max(datos_validos)),
+                    "Media": float(np.mean(datos_validos)),
+                    "Desviacion_Estandar": float(np.std(datos_validos)),
+                    "Percentil_25": float(np.percentile(datos_validos, 25)),
+                    "Mediana_50": float(np.percentile(datos_validos, 50)),
+                    "Percentil_75": float(np.percentile(datos_validos, 75))
+                }
+            else:
+                resumen_metricas[nombre_indice.upper()] = "Sin datos válidos"
+
+        # Define la ruta del archivo utilizando la fecha para mantener orden
+        ruta_archivo = os.path.join(directorio_salida, f"metricas_indices_{fecha}.json")
+        
+        # Exporta el diccionario a un archivo JSON con formato legible (indent=4)
+        with open(ruta_archivo, 'w') as f:
+            json.dump(resumen_metricas, f, indent=4)
+            
+        print(f"Métricas exportadas exitosamente en: {ruta_archivo}")
