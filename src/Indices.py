@@ -1,10 +1,13 @@
+"""
+Módulo para el cálculo de índices vegetativos a partir de los ortomosaicos normalizados.
+
+"""
 import os
 import json
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
-# Asume que VALIDATED_INDICES viene de tu archivo config
 from config import VALIDATED_INDICES
 
 class VegetationIndices:
@@ -31,12 +34,9 @@ class VegetationIndices:
     B_RGB_BLUE = 2
 
     def __init__(self, ms_norm_array, rgb_norm_array=None): 
-        """
-        Inicializa la calculadora con arrays ya normalizados.
-        """
         # Descarta la banda ALPHA si el archivo MS contiene 5 bandas.
         if ms_norm_array.shape[0] == 5:
-            print("Detectadas 5 bandas en MS. Asigna solo las primeras 4 (ignora ALPHA).")
+            print("Detectadas 5 bandas en MS. Asigna solo las primeras 4 para ignorar ALPHA.")
             self.ms_array = ms_norm_array[:4, :, :]
         else:
             self.ms_array = ms_norm_array
@@ -47,7 +47,7 @@ class VegetationIndices:
         self.rgb_green = None
         self.rgb_blue = None
         
-        # Extrae y asigna las bandas multiespectrales a variables individuales.
+        # Extrae y asigna las bandas multiespectrales a variables.
         self.red = self.ms_array[self.B_MS_RED, :, :]
         self.green = self.ms_array[self.B_MS_GREEN, :, :]
         self.nir = self.ms_array[self.B_MS_NIR, :, :]
@@ -61,12 +61,12 @@ class VegetationIndices:
 
     def _safe_divide(self, numerator, denominator):
         """
-        Realiza la división matemática. Evita errores por división por cero.
+        Realiza división matemática evitando división por cero.
         """
         # Genera una máscara booleana donde el denominador es cero o extremadamente pequeño.
         mask = (denominator == 0) | (np.abs(denominator) < 1e-10)
         
-        # Crea un arreglo base lleno de valores nulos (NaN).
+        # Crea un arreglo base lleno de valores nulos.
         result = np.full_like(denominator, np.nan, dtype=np.float64)
 
         # Ejecuta la división únicamente en los píxeles donde la máscara es falsa.
@@ -118,7 +118,7 @@ class VegetationIndices:
     def calculate_gi(self):
         """
         Calcula el Green Index..
-        El GI evalúa el grado de verdor con base en una escala empírica de 0 a 255.
+        Como el GI evalúa el grado de verdor con base en una escala empírica de 0 a 255.
         Convierte los valores normalizados temporalmente a la escala 0-255.
         """
         if self.rgb_blue is None: 
@@ -128,22 +128,22 @@ class VegetationIndices:
         green_255 = self.rgb_green * 255.0
         blue_255 = self.rgb_blue * 255.0
         
-        # Calcula la proximidad de cada canal a los valores óptimos de verde definidos en el paper.
+        # Calcula la proximidad de cada canal a los valores óptimos de verde definidos en el paper (a citar).
         # Usa el valor absoluto para medir la distancia respecto a G=165, R=37.5 y B=37.5.
         componente_g = 255.0 - np.abs(green_255 - 165.0)
         componente_r = 255.0 - np.abs(red_255 - 37.5)
         componente_b = 255.0 - np.abs(blue_255 - 37.5)
         
-        # Suma los componentes y normaliza por el máximo teórico (3 * 255).
+        # Suma y normaliza por el máximo teórico (3 * 255).
         pre_gi = (componente_g + componente_r + componente_b) / (3.0 * 255.0)
         
-        # Calcula el denominador final restando el pre-GI a 1.
+        # Calcula el denominador final.
         denominador = 1.0 - pre_gi
         
-        # Aplica la división segura para evitar errores y aplica el factor de escalado del paper (1/12).
+        # Aplica la división segura y aplica el factor de escalado del paper (1/12).
         gi_final = self._safe_divide(pre_gi, denominador) / 12.0
         
-        # Devuelve la matriz matemática calculada al diccionario principal.
+        # Devuelve la matriz matemática calculada.
         return gi_final
     
     def calculate_evi_hybrid(self):
@@ -154,7 +154,7 @@ class VegetationIndices:
 
     def calculate_main_indices(self):
         """
-        Ejecuta el cálculo masivo de los índices habilitados en la configuración.
+        Ejecuta el cálculo masivo de los índices habilitados en Config.py.
         Devuelve un diccionario con las matrices resultantes.
         """
         indices = {}
@@ -182,19 +182,18 @@ class VegetationIndices:
     
     def plot_index(self, index_array, title="Mapa de Índice", cmap='RdYlGn', auto_scale=True):
         """
-        Genera la visualización dual: mapa de calor e histograma coloreado.
+        Genera el gráfico del mapa de calor y el histograma.
         El parámetro auto_scale fuerza el cálculo de percentiles para estirar el contraste visual.
         """
-        # Aplana la matriz a un vector 1D y elimina los valores nulos (fondo).
+        # Aplana la matriz a un vector y elimina los valores nulos.
         valid_data = index_array.flatten()
         valid_data = valid_data[~np.isnan(valid_data)]
 
-        # Cancela la ejecución si no hay datos válidos en el recorte.
         if valid_data.size == 0:
             print("No hay datos válidos para graficar.")
             return
 
-        # Calcula los percentiles 2 y 98 para descartar outliers y estirar la escala.
+        # Para descartar outliers.
         if auto_scale:
             vmin = np.nanpercentile(valid_data, 2)
             vmax = np.nanpercentile(valid_data, 98)
@@ -202,54 +201,51 @@ class VegetationIndices:
             # Fallback a los límites matemáticos absolutos.
             vmin, vmax = -1, 1
 
-        # Prepara la figura con dos columnas: mapa (izquierda) e histograma (derecha).
         fig, (ax_map, ax_hist) = plt.subplots(1, 2, figsize=(14, 6), gridspec_kw={'width_ratios': [2, 1]})
         
-        # Renderiza el mapa espacial.
+        # Renderiza.
         im = ax_map.imshow(index_array, cmap=cmap, vmin=vmin, vmax=vmax)
         ax_map.set_title(title)
         ax_map.axis('off')
         
-        # Agrega la barra de referencias al mapa.
+        # Barra de referencias.
         plt.colorbar(im, ax=ax_map, fraction=0.046, pad=0.04, label='Valor del Índice')
 
-        # Dibuja el histograma base y captura los componentes generados (bins y barras).
+        # Dibuja el histograma base..
         n, bins, patches = ax_hist.hist(valid_data, bins=50, edgecolor='black', linewidth=0.5, range=(vmin, vmax))
         
-        # Configura el normalizador para mapear los valores de los bins a colores exactos.
+        # Mapea los valores de los bins a colores exactos.
         norm = colors.Normalize(vmin=vmin, vmax=vmax)
         colormap = plt.get_cmap(cmap)
         
-        # Itera sobre cada barra del histograma para asignarle el color correspondiente.
+        # Asigna el color correspondiente a los bins.
         for bin_val, patch in zip(bins, patches):
             color = colormap(norm(bin_val))
             patch.set_facecolor(color)
 
         # Ajusta las etiquetas y el estilo del histograma.
-        ax_hist.set_title("Distribución de Valores (Auto-ajustado)")
-        ax_hist.set_xlabel("Valor del Índice")
+        ax_hist.set_title("Distribución de Valores")
+        ax_hist.set_xlabel("Valor")
         ax_hist.set_ylabel("Cantidad de Píxeles")
         ax_hist.grid(axis='y', linestyle='--', alpha=0.5)
 
-        # Renderiza el lienzo completo.
+        # Renderiza todo.
         plt.tight_layout()
         plt.show()
     
     def exportar_metricas_indices(diccionario_resultados, fecha, directorio_salida="../outputs"):
         """
         Calcula estadísticas descriptivas para cada índice y las exporta a un archivo JSON.
-        Ignora los valores nulos (NaN) provenientes del fondo.
+        Ignora los valores nulos provenientes del fondo.
         """
         # Crea el directorio de salida si no existe
         os.makedirs(directorio_salida, exist_ok=True)
         
         resumen_metricas = {}
         
-        print("Calculando métricas para exportación...")
-        
-        # Itera sobre cada índice calculado en el diccionario de resultados
+        # Itera sobre cada índice calculado en el diccionario de resultados.
         for nombre_indice, matriz in diccionario_resultados.items():
-            # Aplana la matriz y filtra los valores NaN
+            # Aplana la matriz y filtra los valores NaN.
             datos_validos = matriz.flatten()
             datos_validos = datos_validos[~np.isnan(datos_validos)]
             
@@ -267,10 +263,10 @@ class VegetationIndices:
             else:
                 resumen_metricas[nombre_indice.upper()] = "Sin datos válidos"
 
-        # Define la ruta del archivo utilizando la fecha para mantener orden
+        # Define la ruta del archivo utilizando la fecha para nombrar el archivo (para el dev).
         ruta_archivo = os.path.join(directorio_salida, f"metricas_indices_{fecha}.json")
         
-        # Exporta el diccionario a un archivo JSON con formato legible (indent=4)
+        # Exporta el diccionario a un archivo JSON con formato legible.
         with open(ruta_archivo, 'w') as f:
             json.dump(resumen_metricas, f, indent=4)
             

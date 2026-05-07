@@ -12,19 +12,13 @@ def aplicar_otsu_indice(indice_array):
     # Filtra los valores nulos.
     indice_valido = indice_array[~np.isnan(indice_array)]
     
-    # Calcula el valor de corte.
+    # Calcula el threshold.
     umbral_otsu = threshold_otsu(indice_valido)
     
-    # Genera una matriz de verdaderos y falsos. 
+    # Genera la máscara binaria.
     mascara_vegetacion = indice_array > umbral_otsu
-    
-    # Aplica buffer negativo si está habilitado en config.py
-    if SEGMENTATION_PARAMS.get('apply_negative_buffer', False):
-        pixels = SEGMENTATION_PARAMS.get('buffer_pixels', 0)
-        if pixels > 0:
-            mascara_vegetacion = binary_erosion(mascara_vegetacion, iterations=pixels)
-            
-    # Devuelve la máscara binaria y el valor numérico del umbral.
+                
+    # Devuelve la máscara binaria y el umbral.
     return mascara_vegetacion, umbral_otsu
 
 def apply_mask_to_indices(indices_dict, vegetation_mask):
@@ -33,30 +27,27 @@ def apply_mask_to_indices(indices_dict, vegetation_mask):
     Convierte los píxeles de suelo a valores nulos.
     
     Parámetros:
-    - indices_dict: Diccionario con los índices calculados (ej. {"ndvi": array, "gndvi": array}).
+    - indices_dict: Diccionario con los índices calculados.
     - vegetation_mask: Matriz booleana donde True es vegetación y False es suelo.
     
     Retorna:
     - Un nuevo diccionario con las matrices enmascaradas.
     """
-    # Crea un diccionario vacío para guardar los índices limpios sin alterar los originales.
     masked_indices = {}
     
-    # Recorre cada par de nombre y matriz dentro del diccionario de índices.
+    # Recorre el diccionario.
     for index_name, index_array in indices_dict.items():
-        # Verifica que el índice exista y no sea nulo.
         if index_array is not None:
-            # Copia la matriz original para asegurar que no se modifiquen los datos base.
             masked_array = np.copy(index_array)
             
-            # Se invierte la máscara con el operador y se asigna el valor np.nan a todas esas posiciones seleccionadas.
+            # Se invierte la máscara y se asigna el valor np.nan a todas esas posiciones seleccionadas.
             masked_array[~vegetation_mask] = np.nan
             
-            # Guarda la matriz limpia en el nuevo diccionario.
+            # Guarda la matriz en el nuevo diccionario.
             masked_indices[index_name] = masked_array
         else:
             # Pasa el valor nulo directo si el índice no existía originalmente.
             masked_indices[index_name] = None
             
-    # Devuelve el diccionario con todos los índices listos para el análisis de planta pura.
+    # Devuelve el diccionario con todos los índices.
     return masked_indices

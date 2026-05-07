@@ -12,22 +12,22 @@ from rasterio.vrt import WarpedVRT
 from rasterio.enums import Resampling
 from rasterio.io import MemoryFile
 
-# Normalización espacial
+# Normalización espacial.
 def align_to_reference(target_array: np.ndarray, ref_profile: dict,
                        src_profile: dict, resampling: Resampling = Resampling.bilinear) -> np.ndarray:
     """
-    Re-muestrea un ortomosaico (target_array) para alinearlo a la grilla de referencia (ref_profile).
+    Toma un ortomosaico (target_array) para alinearlo a la grilla de referencia (ref_profile).
 
     Parámetros
     ----------
     target_array : np.ndarray
         Array que se quiere alinear.
     ref_profile : dict
-        Perfil de referencia obtenido del archivo MS.
+        Perfil de referencia obtenido del archivo MS porque es el que tiene menor resolución.
     src_profile : dict
         Perfil espacial original del target_array.
     resampling : rasterio.enums.Resampling
-        Método de re-muestreo. 'bilinear' es apropiado porque es continuo.
+        Método de re-muestreo bilinear.
 
     Retorna
     np.ndarray
@@ -36,22 +36,21 @@ def align_to_reference(target_array: np.ndarray, ref_profile: dict,
     if target_array is None:
         return None
 
-    # Usamos MemoryFile para crear un dataset temporal en RAM.
+    # Usa MemoryFile para crear un dataset temporal en RAM.
     try:
         with MemoryFile() as memfile:
-            # Definimos el perfil temporal con los datos del array de origen
+            # Define el perfil temporal con los datos del array de origen.
             temp_profile = src_profile.copy()
-            temp_profile.update(dtype=target_array.dtype, count=target_array.shape[0], # Modifica las keys.
+            temp_profile.update(dtype=target_array.dtype, count=target_array.shape[0], 
                                 height=target_array.shape[1], width=target_array.shape[2],
                                 nodata=np.nan)
             
-            # Escribimos el array de origen al dataset en memoria
+            # Escribe el array de origen al dataset en memoria.
             with memfile.open(**temp_profile) as dst:
                 dst.write(target_array)
                 
-            # Abrimos el dataset en memoria como origen para WarpedVRT
+            # Abre el dataset en memoria como origen para WarpedVRT.
             with memfile.open(**temp_profile) as src:
-                # Definimos el molde
                 vrt_opts = dict(
                     crs=ref_profile["crs"],
                     transform=ref_profile["transform"],
@@ -60,7 +59,7 @@ def align_to_reference(target_array: np.ndarray, ref_profile: dict,
                     resampling=resampling
                 )
                 
-                # Aplicamos la alineación y leemos el resultado
+                # Aplicamos la alineación y leemos el resultado.
                 with WarpedVRT(src, **vrt_opts) as vrt:
                     data = vrt.read(out_dtype="float32")
                 return data
@@ -70,12 +69,12 @@ def align_to_reference(target_array: np.ndarray, ref_profile: dict,
         return None # type: ignore
 
 
-# Normalización radiométrica
+# Normalización radiométrica.
 def normalize_radiometric(image: np.ndarray, is_rgb: bool = False) -> np.ndarray:
     """
     Escala los valores de un ortomosaico al rango [0, 1].
     Maneja cada banda independientemente para evitar que bandas
-    con rangos diferentes (como ALPHA) afecten la normalización,
+    con rangos diferentes afecten la normalización,
     a menos que is_rgb sea Verdadero, en cuyo caso normaliza globalmente.
     """
     if image is None:
@@ -83,7 +82,7 @@ def normalize_radiometric(image: np.ndarray, is_rgb: bool = False) -> np.ndarray
 
     arr = image.astype("float32")
     
-    # Para multiespectral: normalizar cada banda independientemente
+    # Para multiespectral normaliza cada banda independientemente.
     if not is_rgb:
         print(f"Normalizando {arr.shape[0]} bandas independientemente")
         normalized = np.zeros_like(arr)
@@ -96,19 +95,19 @@ def normalize_radiometric(image: np.ndarray, is_rgb: bool = False) -> np.ndarray
             
             print(f"     Banda {i}: Min={current_min:.6f}, Max={current_max:.6f}")
             
-            # Si ya está en [0, 1] o rango pequeño, no normalizar
+            # Si ya está en [0, 1] o rango pequeño, no normalizar.
             if current_max <= 1.0:
                 normalized[i] = np.clip(band, 0, 1)
                 print(f"              → Ya normalizada, solo clip")
             
-            # Si está en rango grande (0-255), normalizar por percentil
+            # Si está en rango grande (0-255), normalizar por percentil.
             elif current_max > 1.5:
                 max_val = np.nanpercentile(sample, 99.9)
                 if max_val > 0:
                     normalized[i] = band / max_val
                     print(f"              → Normalizada por percentil 99.9={max_val:.2f}")
             
-            # Rango intermedio, normalizar por max
+            # Rango intermedio, normalizar por max.
             else:
                 if current_max > 0:
                     normalized[i] = band / current_max
@@ -116,21 +115,21 @@ def normalize_radiometric(image: np.ndarray, is_rgb: bool = False) -> np.ndarray
                 
         return np.clip(normalized, 0, 1)
     
-    # Para RGB: normalizar todo junto
+    # Para RGB normaliza todo junto.
     else:
         sample = arr[:, ::10, ::10] if arr.ndim == 3 else arr[::10, ::10]
         current_max = np.nanmax(sample)
         
-        print(f"Normalizando imagen 2D/RGB: Max={current_max:.4f}")
+        print(f"Normalizando imagen RGB: Max={current_max:.4f}")
         
         if current_max > 1.5:
-            # Normalizar por percentil si es rango grande
+            # Normalizar por percentil si es rango grande.
             max_val = np.nanpercentile(sample, 99.9)
             if max_val > 0:
                 arr = arr / max_val
                 print(f"     → Normalizada: {current_max:.2f} → 1.0")
         elif current_max > 1.0:
-            # Normalizar por max si está en rango intermedio
+            # Normalizar por max si está en rango intermedio.
             arr = arr / current_max
             print(f"     → Normalizada por max")
         else:
@@ -145,10 +144,10 @@ def normalize_all(aligned_data: dict) -> dict:
     """
     normalized = {}
     
-    # Normaliza el MS
+    # Normaliza el MS.
     normalized["ms"] = normalize_radiometric(aligned_data["ms_data"], is_rgb=False)
     
-    # Normaliza el RGB
+    # Normaliza el RGB.
     if aligned_data.get("rgb_aligned") is not None:
         normalized["rgb"] = normalize_radiometric(aligned_data["rgb_aligned"], is_rgb=True)
     else:
@@ -157,15 +156,15 @@ def normalize_all(aligned_data: dict) -> dict:
     return normalized
 
 
-# Función maestra
+# Función maestra.
 def process_session(ms_data: np.ndarray, ms_profile: dict, 
                     rgb_data: np.ndarray, rgb_profile: dict,
                     dsm_data: np.ndarray = None, dsm_profile: dict = None) -> dict:
     """
-    Función maestra que coordina la alineación espacial y la normalización radiométrica.
+    Función maestra que aplica la alineación espacial y la normalización radiométrica.
     
     Procesa las bandas multiespectrales y RGB aplicando alineación espacial 
-    y escalado radiométrico [0, 1]. Si se provee un DSM, se le aplica únicamente 
+    y escalado a [0, 1]. Si se provee un DSM se le aplica únicamente 
     la alineación espacial para que coincida con la matriz de referencia.
 
     Parámetros:
@@ -173,7 +172,7 @@ def process_session(ms_data: np.ndarray, ms_profile: dict,
     ms_data, rgb_data : np.ndarray
         Matrices de la imagen Multiespectral y RGB.
     ms_profile, rgb_profile : dict
-        Perfiles de metadatos de rasterio de ambas imágenes.
+        Perfiles de rasterio de ambas imágenes.
     dsm_data : np.ndarray, opcional
         Matriz del Modelo Digital de Superficie.
     dsm_profile : dict, opcional
@@ -184,7 +183,7 @@ def process_session(ms_data: np.ndarray, ms_profile: dict,
     dict: Diccionario con las claves 'ms', 'rgb' y 'dsm' conteniendo las matrices procesadas.
     """
     
-    # Ejecuta la alineación espacial del array RGB utilizando el MS como molde de referencia.
+    # Ejecuta la alineación espacial del array RGB.
     rgb_aligned = align_to_reference(
         rgb_data, 
         ms_profile,
@@ -203,8 +202,7 @@ def process_session(ms_data: np.ndarray, ms_profile: dict,
 
     # Verifica si se introdujeron datos de elevación en la función.
     if dsm_data is not None and dsm_profile is not None:
-        # Ejecuta la alineación espacial del DSM utilizando el MS como molde de referencia.
-        # Se emplea interpolación bilineal para mantener la continuidad del relieve topográfico.
+        # Ejecuta la alineación espacial del DSM.
         dsm_aligned = align_to_reference(
             dsm_data,
             ms_profile,
@@ -214,11 +212,10 @@ def process_session(ms_data: np.ndarray, ms_profile: dict,
         if dsm_aligned is not None:
             print("Alineación espacial del DSM completada.")
         else:
-            print("Advertencia: Falló la alineación del DSM.")
+            print("Falló la alineación del DSM.")
 
     # Agrupa los datos que requieren normalización radiométrica. 
-    # El DSM se excluye deliberadamente de este diccionario.
-    print("Iniciando Normalización Radiométrica (excluyendo DSM para preservar unidades métricas)...")
+    # El DSM se excluye para mantener sus valores en metros.
     aligned_data_for_radiometry = {
         "ms_data": ms_data,       
         "rgb_aligned": rgb_aligned
@@ -228,7 +225,7 @@ def process_session(ms_data: np.ndarray, ms_profile: dict,
     normalized = normalize_all(aligned_data_for_radiometry)
     print("Normalización radiométrica completada.")
 
-    # Retorna el paquete de datos unificado.
+    # Devuelve el paquete de datos.
     return {
         "ms": normalized["ms"],
         "rgb": normalized["rgb"],
