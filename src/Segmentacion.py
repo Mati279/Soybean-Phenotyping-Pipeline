@@ -12,13 +12,11 @@ def aplicar_otsu_indice(indice_array):
     # Filtra los valores nulos.
     indice_valido = indice_array[~np.isnan(indice_array)]
     
-    # Calcula el threshold.
     umbral_otsu = threshold_otsu(indice_valido)
     
     # Genera la máscara binaria.
     mascara_vegetacion = indice_array > umbral_otsu
                 
-    # Devuelve la máscara binaria y el umbral.
     return mascara_vegetacion, umbral_otsu
 
 def apply_mask_to_indices(indices_dict, vegetation_mask):

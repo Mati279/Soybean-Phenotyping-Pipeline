@@ -9,6 +9,8 @@ import os
 import rasterio
 import numpy as np
 import matplotlib.pyplot as plt
+from shapely.geometry import Polygon
+from rasterio.features import geometry_mask
 
 # Importa las rutas base y sufijos desde Config.py.
 from config import ORTOMOSAICOS_DIR, BAND_SUFFIXES
@@ -136,3 +138,30 @@ def show_orthomosaic(orthomosaic: np.ndarray, title: str = " ") -> None:
     if title:
         plt.title(title)
     plt.show()
+
+def aplicar_mascara_poligono(arreglo: np.ndarray, perfil: dict, poligono: Polygon, nombre_capa: str = "Capa") -> np.ndarray:
+    """
+    Recorta un array usando Shapely.
+
+    """
+    geometrias = [poligono]
+    
+    mascara = geometry_mask(
+        geometries=geometrias,                                
+        out_shape=(perfil['height'], perfil['width']),        
+        transform=perfil['transform'],                        
+        invert=True                                           
+    )
+    
+    arreglo_recortado = arreglo.copy()
+    
+    # 4. Iteramos sobre cada banda.
+    for banda in range(arreglo_recortado.shape[0]):
+        arreglo_recortado[banda][~mascara] = 0
+        
+    res_x = abs(perfil['transform'][0])
+    res_y = abs(perfil['transform'][4])
+    
+    print(f"[INFO] Recorte aplicado a: {nombre_capa} | Resol: {res_x:.4f}x{res_y:.4f} m/px")
+    
+    return arreglo_recortado
