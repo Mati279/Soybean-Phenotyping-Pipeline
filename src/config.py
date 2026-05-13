@@ -27,7 +27,7 @@ VALIDATED_INDICES = [
     'NDVI',
     'NDRE',
     'GNDVI',
-    'EVI',
+    #'EVI', se elimina por errores en el cálculo. 
     'VARI',
     'ExG',
     'SAVI',

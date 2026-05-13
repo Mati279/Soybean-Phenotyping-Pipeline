@@ -17,17 +17,18 @@ class VegetationIndices:
     Trabaja con los outputs normalizados de "Normalizacion.process_session".
     
     Mapeo de Bandas MS:
-    0: RED
-    1: GREEN
-    2: NIR
-    3: RED EDGE
+    0: GREEN
+    1: RED
+    2: RED EDGE
+    3: NIR
     4: ALPHA
     """
     
-    B_MS_RED = 0
-    B_MS_GREEN = 1
-    B_MS_NIR = 2
-    B_MS_RED_EDGE = 3
+    # 🧑‍💻 Fix: Mapeado según el output real del sensor en el pipeline de ejecución.
+    B_MS_GREEN = 0
+    B_MS_RED = 1
+    B_MS_RED_EDGE = 2
+    B_MS_NIR = 3
     
     B_RGB_RED = 0
     B_RGB_GREEN = 1
@@ -93,7 +94,7 @@ class VegetationIndices:
         numerator = self.nir - self.red
         denominator = self.nir + self.red + L 
         res = self._safe_divide(numerator, denominator) * (1 + L)
-        return res
+        return np.clip(res, -1, 1)
     
     def calculate_gndvi(self):
         """GNDVI = (NIR - Green) / (NIR + Green)"""
@@ -113,7 +114,8 @@ class VegetationIndices:
         """ExG = 2*Green - Red - Blue."""
         if self.rgb_blue is None: 
             return None
-        return 2 * self.rgb_green - self.rgb_red - self.rgb_blue
+        res = 2 * self.rgb_green - self.rgb_red - self.rgb_blue
+        return np.clip(res, -1, 1)
 
     def calculate_gi(self):
         """
@@ -147,27 +149,46 @@ class VegetationIndices:
         return gi_final
     
     def calculate_evi_hybrid(self):
-        """EVI ajustado para datos de reflectancia previamente normalizados."""
+        if self.rgb_blue is None:
+            return None
+        
         numerator = self.nir - self.red
-        denominator = self.nir + 2.4 * self.red + 1
-        return 2.5 * self._safe_divide(numerator, denominator)
+        denominator = self.nir + 6.0 * self.red - 7.5 * self.rgb_blue + 1.0
+        
+        # Descarta píxeles donde el denominador es inestable.
+        mascara_den_invalido = np.abs(denominator) < 0.1
+        
+        res = 2.5 * self._safe_divide(numerator, denominator)
+        res[mascara_den_invalido] = np.nan
+        
+        return np.clip(res, -1, 1)
 
     def calculate_main_indices(self):
         """
-        Ejecuta el cálculo masivo de los índices habilitados en Config.py.
+        Ejecuta el cálculo de los índices habilitados en Config.py.
+        Aplica máscara de NIR mínimo para eliminar píxeles de sombra/borde.
         Devuelve un diccionario con las matrices resultantes.
         """
+        mascara_nir = self.nir >= 0.02
+
+        def _aplicar_mascara(matriz):
+            if matriz is None:
+                return None
+            resultado = matriz.copy()
+            resultado[~mascara_nir] = np.nan
+            return resultado
+
         indices = {}
-        
+
         if 'NDVI' in VALIDATED_INDICES:
-            indices["ndvi"] = self.calculate_ndvi()
+            indices["ndvi"] = _aplicar_mascara(self.calculate_ndvi())
         if 'NDRE' in VALIDATED_INDICES:
-            indices["ndre"] = self.calculate_ndre()
+            indices["ndre"] = _aplicar_mascara(self.calculate_ndre())
         if 'SAVI' in VALIDATED_INDICES:
-            indices["savi"] = self.calculate_savi()
+            indices["savi"] = _aplicar_mascara(self.calculate_savi())
         if 'GNDVI' in VALIDATED_INDICES:
-            indices["gndvi"] = self.calculate_gndvi()
-            
+            indices["gndvi"] = _aplicar_mascara(self.calculate_gndvi())
+
         if self.rgb_array is not None:
             if 'VARI' in VALIDATED_INDICES:
                 indices["vari"] = self.calculate_vari()
@@ -176,8 +197,8 @@ class VegetationIndices:
             if 'GI' in VALIDATED_INDICES:
                 indices["gi"] = self.calculate_gi()
             if 'EVI' in VALIDATED_INDICES:
-                indices["evi"] = self.calculate_evi_hybrid()
-                
+                indices["evi"] = _aplicar_mascara(self.calculate_evi_hybrid())
+
         return indices
     
     def plot_index(self, index_array, title="Mapa de Índice", cmap='RdYlGn', auto_scale=True):
@@ -271,3 +292,9 @@ class VegetationIndices:
             json.dump(resumen_metricas, f, indent=4)
             
         print(f"Métricas exportadas exitosamente en: {ruta_archivo}")
+    def _mascara_nir_minimo(self, umbral_nir=0.02):
+        """
+        Devuelve una máscara booleana True donde NIR es suficiente
+        para calcular índices confiables.
+     """
+        return self.nir >= umbral_nir
